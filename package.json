@@ -1,0 +1,19 @@
+{
+	"name": "gay",
+	"private": true,
+	"version": "0.1.0",
+	"description": "Tiny Pi SDK chat pipeline experiments.",
+	"type": "module",
+	"scripts": {
+		"check": "biome check . && bun test",
+		"format": "biome format --write .",
+		"lint": "biome check .",
+		"test": "bun test"
+	},
+	"dependencies": {
+		"@earendil-works/pi-coding-agent": "0.79.1"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.2.5"
+	}
+}

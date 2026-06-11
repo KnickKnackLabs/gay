@@ -1,0 +1,25 @@
+#!/usr/bin/env bun
+//MISE description="Prompt the configured local Pi model"
+//USAGE flag "--label <label>" default="" help="Prefix displayed output while preserving raw pipe output"
+//USAGE flag "--model <model>" default="local-vllm/gemma-4-12B-it-OptiQ-4bit" help="Pi model as provider/model"
+//USAGE arg "[prompt]" var=#true default="" help="Prompt text; stdin is appended when present"
+//USAGE example "mise run chat 'Reply with exactly: ok'" header="Simple prompt"
+//USAGE example "cat log.txt | mise run chat 'Summarize these errors'" header="Prompt with stdin"
+//USAGE example "gay chat --label joke 'tell me a joke' | gay chat --label critique 'critique this joke'" header="Labeled pipeline trace"
+
+import { runChatTask } from "../../src/chat.ts";
+
+try {
+	await runChatTask({
+		argv: process.argv.slice(2),
+		env: process.env,
+		stdin: process.stdin,
+		stdout: process.stdout,
+		stderr: process.stderr,
+		cwd: process.env.GAY_CALLER_PWD ?? process.cwd(),
+	});
+} catch (error) {
+	const message = error instanceof Error ? error.message : String(error);
+	process.stderr.write(`${message}\n`);
+	process.exit(1);
+}

@@ -1,0 +1,89 @@
+#!/usr/bin/env bun
+//MISE description="Check local development setup"
+
+type Check = {
+	name: string;
+	ok: boolean;
+	detail: string;
+	output?: string;
+};
+
+const cwd = process.env.MISE_CONFIG_ROOT ?? process.cwd();
+
+async function run(command: string[], options: { allowFailure?: boolean } = {}) {
+	const child = Bun.spawn(command, {
+		cwd,
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	const [stdout, stderr, exitCode] = await Promise.all([
+		new Response(child.stdout).text(),
+		new Response(child.stderr).text(),
+		child.exited,
+	]);
+	const output = [stdout.trim(), stderr.trim()].filter(Boolean).join("\n");
+	if (exitCode !== 0 && !options.allowFailure) {
+		throw new Error(output || `${command.join(" ")} exited ${exitCode}`);
+	}
+	return { exitCode, output };
+}
+
+async function check(
+	name: string,
+	detail: string,
+	fn: () => Promise<string | undefined>,
+): Promise<Check> {
+	try {
+		return { name, ok: true, detail, output: await fn() };
+	} catch (error) {
+		return {
+			name,
+			ok: false,
+			detail,
+			output: error instanceof Error ? error.message : String(error),
+		};
+	}
+}
+
+const checks = await Promise.all([
+	check("dependencies", "Bun dependencies are installed", async () => {
+		await run(["bun", "install", "--frozen-lockfile", "--ignore-scripts"]);
+		return undefined;
+	}),
+	check("tests", "lint and tests pass", async () => {
+		await run(["bun", "run", "check"]);
+		return undefined;
+	}),
+	check("README", "README.md is generated from README.tsx", async () => {
+		await run(["readme", "build", "--check"]);
+		return undefined;
+	}),
+	check("codebase", "configured convention lints pass", async () => {
+		await run(["codebase", "lint", cwd]);
+		return undefined;
+	}),
+	check("pre-commit", "optional codebase pre-commit hook is installed", async () => {
+		const git = await run(["git", "rev-parse", "--git-dir"], {
+			allowFailure: true,
+		});
+		if (git.exitCode !== 0) return "not a git checkout; hook check skipped";
+
+		const hook = await run(["codebase", "pre-commit", "--check"], {
+			allowFailure: true,
+		});
+		if (hook.exitCode !== 0) return "optional hook missing; run codebase pre-commit";
+		return undefined;
+	}),
+]);
+
+const nameWidth = Math.max(...checks.map((item) => item.name.length), 5);
+for (const item of checks) {
+	const status = item.ok ? "✓" : "✗";
+	const note = item.output ? `${item.detail} (${item.output})` : item.detail;
+	console.log(`${status} ${item.name.padEnd(nameWidth)} ${note}`);
+}
+
+const failures = checks.filter((item) => !item.ok);
+if (failures.length > 0) {
+	process.exit(1);
+}

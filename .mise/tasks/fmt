@@ -1,0 +1,12 @@
+#!/usr/bin/env bun
+//MISE description="Format code with Biome"
+
+const cwd = process.env.MISE_CONFIG_ROOT ?? process.cwd();
+const child = Bun.spawn(["bun", "run", "format"], {
+	cwd,
+	stdin: "inherit",
+	stdout: "inherit",
+	stderr: "inherit",
+});
+
+process.exit(await child.exited);

@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+gay_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+task_root="$gay_root/.mise/tasks"
+
+usage() {
+  cat <<'USAGE'
+gay - tiny Pi SDK chat pipeline experiments
+
+Usage:
+  gay TASK [SUBTASK ...] [args]
+  gay help [TASK [SUBTASK ...]]
+
+Examples:
+  gay chat 'Reply with exactly: ok'
+  cat log.txt | gay chat 'Summarize each error as one bullet. No extra text.'
+
+Tasks are mise task scripts under .mise/tasks. Nested tasks use spaces:
+  .mise/tasks/foo/bar  ->  gay foo bar
+USAGE
+}
+
+task_description() {
+  local task_file="$1"
+  local desc_line desc
+
+  if desc_line="$(grep -E '^(#|//)MISE description=' "$task_file" 2>/dev/null | head -n 1)"; then
+    desc="${desc_line#*description=\"}"
+    desc="${desc%\"}"
+    printf '%s' "$desc"
+  fi
+}
+
+if [ "$#" -eq 0 ] || [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
+  usage
+  exit 0
+fi
+
+help_requested=false
+if [ "${1:-}" = "help" ]; then
+  shift
+  if [ "$#" -eq 0 ]; then
+    usage
+    echo
+    echo "Available tasks:"
+    find "$task_root" -type f -perm -u+x | while IFS= read -r task_file; do
+      rel="${task_file#"$task_root/"}"
+      task="${rel//\// }"
+      desc="$(task_description "$task_file")"
+      if [ -n "$desc" ]; then
+        printf '  %-22s %s\n' "$task" "$desc"
+      else
+        printf '  %s\n' "$task"
+      fi
+    done | sort
+    exit 0
+  fi
+  help_requested=true
+fi
+
+match_count=0
+match_task=""
+current="$task_root"
+index=0
+
+for arg in "$@"; do
+  index=$((index + 1))
+  candidate="$current/$arg"
+
+  if [ -f "$candidate" ] && [ -x "$candidate" ]; then
+    rel="${candidate#"$task_root/"}"
+    match_task="${rel//\//:}"
+    match_count="$index"
+  fi
+
+  if [ -d "$candidate" ]; then
+    current="$candidate"
+  else
+    break
+  fi
+done
+
+if [ "$match_count" -eq 0 ]; then
+  printf 'gay: unknown task:' >&2
+  for arg in "$@"; do
+    printf ' %s' "$arg" >&2
+  done
+  printf '\n\n' >&2
+  usage >&2
+  exit 2
+fi
+
+rest=("$@")
+for ((i = 0; i < match_count; i++)); do
+  unset 'rest[i]'
+done
+rest=("${rest[@]}")
+if $help_requested; then
+  rest=("--help" "${rest[@]}")
+fi
+
+export GAY_ROOT="$gay_root"
+export GAY_CALLER_PWD="${GAY_CALLER_PWD:-$PWD}"
+export PATH="$gay_root/bin:$PATH"
+
+cd "$gay_root"
+exec mise run -q "$match_task" -- "${rest[@]}"

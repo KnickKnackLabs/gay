@@ -1,0 +1,20 @@
+[settings]
+quiet = true
+task_output = "interleave"
+experimental = true
+
+[plugins]
+shiv = "https://github.com/KnickKnackLabs/vfox-shiv"
+
+[tools]
+bun = "1.3.14"
+"shiv:codebase" = "0.3"
+"shiv:readme" = "0.3"
+
+[_.codebase]
+lint = [
+  "mise-settings",
+  "caller-pwd-contract",
+  "github-actions",
+  "shellcheck",
+]
