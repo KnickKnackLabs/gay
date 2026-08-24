@@ -8,7 +8,7 @@ Compose local model calls with ordinary Unix pipes.
 
 ![shape: Bun + Pi SDK](https://img.shields.io/badge/shape-Bun%20%2B%20Pi%20SDK-f472b6?style=flat)
 [![tests: 3](https://img.shields.io/badge/tests-3-brightgreen?style=flat)](test/)
-![lints: 4](https://img.shields.io/badge/lints-4-blue?style=flat)
+![lints: 16](https://img.shields.io/badge/lints-16-blue?style=flat)
 ![README: TSX](https://img.shields.io/badge/README-TSX-f472b6?style=flat)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat)](LICENSE)
 
