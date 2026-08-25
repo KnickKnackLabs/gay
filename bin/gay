@@ -95,9 +95,9 @@ rest=("$@")
 for ((i = 0; i < match_count; i++)); do
   unset 'rest[i]'
 done
-rest=("${rest[@]}")
+rest=(${rest[@]+"${rest[@]}"})
 if $help_requested; then
-  rest=("--help" "${rest[@]}")
+  rest=("--help" ${rest[@]+"${rest[@]}"})
 fi
 
 export GAY_ROOT="$gay_root"
@@ -105,4 +105,4 @@ export GAY_CALLER_PWD="${GAY_CALLER_PWD:-$PWD}"
 export PATH="$gay_root/bin:$PATH"
 
 cd "$gay_root"
-exec mise run -q "$match_task" -- "${rest[@]}"
+exec mise run -q "$match_task" -- ${rest[@]+"${rest[@]}"}

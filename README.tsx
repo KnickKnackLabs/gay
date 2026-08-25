@@ -1,5 +1,6 @@
 /** @jsxImportSource jsx-md */
 
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
@@ -116,8 +117,38 @@ function configuredLints(): string[] {
 		block.push(line);
 	}
 
-	const list = block.join("\n").match(/lint\s*=\s*\[([\s\S]*?)\]/)?.[1] ?? "";
-	return [...list.matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+	const config = block.join("\n");
+	const list = config.match(/lint\s*=\s*\[([\s\S]*?)\]/)?.[1] ?? "";
+	const configured = [...list.matchAll(/"([^"]+)"/g)].map((match) => match[1]);
+	const excluded = new Set(
+		[
+			...(
+				config.match(/lint_exclude\s*=\s*\[([\s\S]*?)\]/)?.[1] ?? ""
+			).matchAll(/"([^"]+)"/g),
+		].map((match) => match[1]),
+	);
+	if (!configured.some((rule) => rule.startsWith("@"))) {
+		return configured.filter((rule) => !excluded.has(rule));
+	}
+
+	const memberships = new Map<string, string[]>();
+	let currentGroup = "";
+	const groups = execFileSync("codebase", ["lint:groups"], {
+		cwd: REPO_DIR,
+		encoding: "utf8",
+	});
+	for (const line of groups.split("\n")) {
+		if (line.startsWith("@")) {
+			currentGroup = line;
+			memberships.set(currentGroup, []);
+		} else if (currentGroup && line.startsWith("  ")) {
+			memberships.get(currentGroup)?.push(line.trim());
+		}
+	}
+
+	return [
+		...new Set(configured.flatMap((rule) => memberships.get(rule) ?? [rule])),
+	].filter((rule) => !excluded.has(rule));
 }
 
 function status(path: string): string {
